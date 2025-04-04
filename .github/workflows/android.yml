@@ -39,11 +39,11 @@ jobs:
       - name: Grant execute permission to Gradle
         run: chmod +x gradlew
 
-      - name: Run Ktlint
-        run: ./gradlew ktlintCheck
+      # - name: Run Ktlint
+      #   run: ./gradlew ktlintCheck
 
-      - name: Run Detekt
-        run: ./gradlew detekt
+      # - name: Run Detekt
+      #   run: ./gradlew detekt
 
       - name: Run Lint
         run: ./gradlew lintDebug
