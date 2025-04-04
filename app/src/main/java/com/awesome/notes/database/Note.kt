@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
     tableName = "notes"
 )
 data class Note(
-    @PrimaryKey
+    @PrimaryKey(autoGenerate = true)
     var id :Int,
     val title: String,
     val description: String,
