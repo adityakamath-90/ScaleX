@@ -31,12 +31,12 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = "21"
+        jvmTarget = "19"
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_19
+        targetCompatibility = JavaVersion.VERSION_19
     }
     buildFeatures {
         compose = true
@@ -56,6 +56,9 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.lifecycle.runtimeCompose)
+    implementation(libs.androidx.navigation.compose)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -70,4 +73,5 @@ dependencies {
     // Optional: ViewModel and Coroutines support for Hilt integration
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.datetime)
+    implementation(project(":core:auth"))
 }
