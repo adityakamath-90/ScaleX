@@ -1,4 +1,6 @@
-import com.awesome.network.di.TaskPriority
+import com.awesome.network_api.TaskManager
+import com.awesome.network_api.TaskPriority
+import kotlinx.coroutines.Deferred
 import javax.inject.Inject
 
 class TaskManagerImpl @Inject internal constructor(
@@ -10,19 +12,15 @@ class TaskManagerImpl @Inject internal constructor(
         method: String,
         body: String?,
         headers: Map<String, String>?,
-        priority: TaskPriority,
-        onSuccess: (T) -> Unit,
-        onError: (Throwable) -> Unit
-    ) {
-        val task = NetworkTask(
+        priority: TaskPriority
+    )  : Deferred<Result<T>>{
+        val task = NetworkTask<T>(
             url,
             method,
             body,
             headers,
-            priority,
-            onSuccess,
-            onError
+            priority
         )
-        taskExecutor.addTask(task)
+        return taskExecutor.addTask(task)
     }
 }

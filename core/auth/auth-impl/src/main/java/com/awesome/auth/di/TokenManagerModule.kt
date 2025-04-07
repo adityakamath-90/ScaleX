@@ -1,9 +1,9 @@
 package com.awesome.auth.di
 
-import com.awesome.auth.TokenManager
 import com.awesome.auth.TokenManagerImpl
-import dagger.Binds
+import com.awesome.auth_api.TokenManager
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -12,7 +12,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 internal class TokenManagerModule {
 
-    @Binds
+    @Provides
     @Singleton
     fun getTokenManger(authService: AuthService) : TokenManager {
         return TokenManagerImpl(authService)

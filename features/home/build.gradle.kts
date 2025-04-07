@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.org.jetbrains.kotlin.kapt)
+    alias(libs.plugins.hilt.android)
 }
 
 android {
@@ -37,8 +39,10 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    implementation(project((":core:auth")))
-    testImplementation(libs.junit)
+    implementation(project(":core:auth:auth-api"))
+    // Hilt dependencies
+    implementation(libs.hilt.android)  // Hilt Android dependency
+    kapt(libs.hilt.compiler)           // Hilt compiler for annotation processing    testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     testImplementation(libs.kotlin.mockito.kotlin)

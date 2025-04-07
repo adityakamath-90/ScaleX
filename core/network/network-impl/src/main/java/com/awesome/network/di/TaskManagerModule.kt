@@ -1,8 +1,8 @@
 package com.awesome.network.di
 
 import PriorityTaskExecutor
-import TaskManager
 import TaskManagerImpl
+import com.awesome.network_api.TaskManager
 import dagger.Module
 import dagger.Provides
 

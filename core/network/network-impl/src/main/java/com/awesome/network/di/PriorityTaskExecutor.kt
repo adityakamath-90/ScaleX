@@ -1,4 +1,3 @@
-
 import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -28,15 +27,16 @@ class PriorityTaskExecutor @Inject constructor(
     private val mutex = Mutex()  // Mutex to protect shared state
     private var isRunning = true
 
-    suspend fun <T> addTask(task: NetworkTask<T>): Deferred<T> {
-        val deferred = CompletableDeferred<T>()
-        val taskWithCallbacks = task.copy(
-            onSuccess = { result -> deferred.complete(result) },  // Complete the deferred when success
-            onError = { error -> deferred.completeExceptionally(error) }  // Complete the deferred with an exception when error
-        )
+    // Modify to return Deferred<Result<T>>
+    suspend fun <T> addTask(task: NetworkTask<T>): Deferred<Result<T>> {
+        val deferred = CompletableDeferred<Result<T>>()
 
         mutex.withLock {
-            taskQueue.put(taskWithCallbacks)  // Thread-safe access to taskQueue
+            taskQueue.put(task)  // Thread-safe access to taskQueue
+        }
+
+        taskScope.launch {
+            executeTaskWithRetry(task, deferred)
         }
 
         return deferred
@@ -50,20 +50,20 @@ class PriorityTaskExecutor @Inject constructor(
             }
             if (task != null) {
                 taskScope.launch {
-                    executeTaskWithRetry(task)
+                    executeTaskWithRetry(task, CompletableDeferred())
                 }
             }
         }
     }
 
-    private suspend fun <T> executeTaskWithRetry(task: NetworkTask<T>) {
+    private suspend fun <T> executeTaskWithRetry(task: NetworkTask<T>, deferred: CompletableDeferred<Result<T>>) {
         var lastError: Throwable? = null
         var attempts = 0
         while (attempts < maxRetries) {
             try {
                 val result = executeRequest(task)
                 if (result.isSuccess) {
-                    task.onSuccess(result.getOrThrow())
+                    deferred.complete(Result.success(result.getOrThrow()))  // Complete with success
                     return
                 }
             } catch (e: Exception) {
@@ -74,7 +74,7 @@ class PriorityTaskExecutor @Inject constructor(
                 }
             }
         }
-        lastError?.let { task.onError(it) }
+        deferred.complete(Result.failure(lastError ?: Exception("Unknown error")))  // Complete with failure
     }
 
     private suspend fun <T> executeRequest(task: NetworkTask<T>): Result<T> = withContext(taskScope.coroutineContext) {

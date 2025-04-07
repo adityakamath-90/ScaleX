@@ -21,11 +21,14 @@ dependencyResolutionManagement {
 
 rootProject.name = "Reddit"
 include(":app")
-include(":core:network")
 include(":home")
 include(":core:designsystem")
 include(":features")
 include(":features:home")
 include(":core:analytics")
-include(":core:auth")
+include(":core:auth:auth-impl")
 include(":build-logic")
+include(":core:test")
+include(":core:network:network-impl")
+include(":core:network:network-api")
+include(":core:auth:auth-api")

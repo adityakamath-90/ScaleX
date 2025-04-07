@@ -73,5 +73,4 @@ dependencies {
     // Optional: ViewModel and Coroutines support for Hilt integration
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.datetime)
-    implementation(project(":core:auth"))
 }
