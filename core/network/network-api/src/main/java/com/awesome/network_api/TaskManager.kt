@@ -1,4 +1,6 @@
-import com.awesome.network.di.TaskPriority
+package com.awesome.network_api
+
+import kotlinx.coroutines.Deferred
 
 interface TaskManager {
     suspend fun <T> createTask(
@@ -7,7 +9,5 @@ interface TaskManager {
         body: String? = null,
         headers: Map<String, String>? = null,
         priority: TaskPriority = TaskPriority.MEDIUM,
-        onSuccess: (T) -> Unit,
-        onError: (Throwable) -> Unit
-    )
+    ) : Deferred<Result<T>>
 }

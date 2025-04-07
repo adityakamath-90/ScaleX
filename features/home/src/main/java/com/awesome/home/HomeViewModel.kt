@@ -1,15 +1,12 @@
-package com.awesome.notes
+package com.awesome.home
 
-import TaskManagerImpl
 import androidx.lifecycle.ViewModel
+import com.awesome.auth_api.TokenManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
-class HomeViewModel @Inject constructor() : ViewModel(){
-
-    @Inject
-    lateinit var manager: TaskManagerImpl
+class HomeViewModel @Inject constructor(manager: TokenManager) : ViewModel(){
 
     suspend fun launch(){
     }

@@ -1,4 +1,4 @@
-package com.awesome.network.di
+package com.awesome.network_api
 
 // TaskPriority.kt
 enum class TaskPriority(val priorityValue: Int) {
