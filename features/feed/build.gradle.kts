@@ -60,6 +60,9 @@ dependencies {
     implementation(libs.hilt.android)
     debugImplementation(libs.ui.tooling)
     kapt(libs.hilt.compiler)
+
+    implementation(libs.coil.compose)
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     testImplementation(libs.kotlin.mockito.kotlin)

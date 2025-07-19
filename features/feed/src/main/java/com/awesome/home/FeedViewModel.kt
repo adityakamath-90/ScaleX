@@ -29,7 +29,7 @@ class FeedViewModel @Inject constructor(private val repository: FeedRepository) 
                 val pokemonList = pokemonRes.getOrNull()
                 Log.i("TAG", "getRecentFeed: $pokemonList")
                 if (pokemonList != null) {
-                    stateFlow.value = pokemonList.results.toMutableList()
+                    stateFlow.value = pokemonList.toMutableList()
                 }
             }
         }

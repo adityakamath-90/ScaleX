@@ -2,28 +2,24 @@ package com.awesome.home
 
 import com.coding.networksdk.Network
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.net.HttpURLConnection
 import java.net.URL
 import javax.inject.Inject
 
 class FeedRepository @Inject constructor(private val network: Network) {
 
-    fun getRecentFeed(): Result<FeedResponse> {
+    fun getRecentFeed(): Result<List<FeedItem>> {
         val urlConnection =
-            URL("https://pokeapi.co/api/v2/pokemon?limit=50").openConnection() as HttpURLConnection
+            URL("https://jsonplaceholder.typicode.com/photos").openConnection() as HttpURLConnection
         val response = urlConnection.inputStream.bufferedReader().use { it.readText() }
-        return Result.success(Gson().fromJson(response, FeedResponse::class.java))
+        val itemType = object : TypeToken<List<FeedItem>>() {}.type
+        return Result.success(Gson().fromJson(response, itemType))
     }
 
-    data class FeedResponse(
-        val count: Int,
-        val next: String? = null,
-        val previous: String? = null,
-        val results: List<FeedItem>
-    )
-
     data class FeedItem(
-        val name: String,
-        val url: String
+        val id: Int,
+        val title: String,
+        val thumbnailUrl: String
     )
 }
