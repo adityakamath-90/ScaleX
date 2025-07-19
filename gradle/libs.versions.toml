@@ -2,6 +2,8 @@
 agp = "8.9.1"
 converterGson = "2.9.0"
 gson = "2.11.0"
+gson1 = "1.11.0"
+gson2 = "2.8.0"
 gsonVersion = "2.8.8"
 hiltAndroid = "2.56"
 hiltCompiler = "2.56"
@@ -30,6 +32,7 @@ appcompat = "1.7.0"
 androidxNavigation = "2.8.5"
 androidxHiltNavigationCompose = "1.2.0"
 jetbrainsKotlinJvm = "2.1.20"
+uiTooling = "1.8.3"
 
 
 [libraries]
@@ -38,6 +41,7 @@ androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-view
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomRuntime" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-android-testing = { module = "com.google.dagger:hilt-android-testing", version.ref = "hiltAndroid" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltCompiler" }
@@ -64,6 +68,7 @@ androidx-lifecycle-runtimeCompose = { group = "androidx.lifecycle", name = "life
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "androidxNavigation" }
 
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "uiTooling" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

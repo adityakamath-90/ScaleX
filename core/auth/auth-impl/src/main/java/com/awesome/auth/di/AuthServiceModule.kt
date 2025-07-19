@@ -1,14 +1,14 @@
 package com.awesome.auth.di
 
-import com.awesome.network_api.TaskManager
+import com.awesome.network_api.Network
 import dagger.Binds
-import dagger.Module
 
-@Module
+//@Module
+//@InstallIn(SingletonComponent::class)
 class AuthServiceModule {
 
     @Binds
-    fun provideAuthService(manager: TaskManager) : AuthService {
+    fun provideAuthService(manager: Network): AuthService {
         return AuthServiceImpl(manager)
     }
 }

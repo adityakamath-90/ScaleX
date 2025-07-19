@@ -10,6 +10,10 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+//    pluginManagement {
+//        includeBuild("build-logic")
+//    }
+
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
@@ -24,11 +28,11 @@ include(":app")
 include(":home")
 include(":core:designsystem")
 include(":features")
-include(":features:home")
+include(":features:feed")
 include(":core:analytics")
 include(":core:auth:auth-impl")
-include(":build-logic")
 include(":core:test")
 include(":core:network:network-impl")
 include(":core:network:network-api")
 include(":core:auth:auth-api")
+include(":sdks:networkSdk")

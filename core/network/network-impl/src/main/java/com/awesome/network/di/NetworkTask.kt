@@ -1,3 +1,5 @@
+package com.awesome.network.di
+
 import com.awesome.network_api.TaskPriority
 
 data class NetworkTask<T>(
@@ -5,5 +7,5 @@ data class NetworkTask<T>(
     val method: String,
     val body: String? = null,
     val headers: Map<String, String>? = null,
-    val priority: TaskPriority
+    val priority: TaskPriority,
 )

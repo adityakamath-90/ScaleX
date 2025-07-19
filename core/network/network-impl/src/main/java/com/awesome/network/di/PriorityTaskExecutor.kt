@@ -1,9 +1,12 @@
+package com.awesome.network.di
+
 import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -17,28 +20,25 @@ import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PriorityTaskExecutor @Inject constructor(
     private val taskQueue: PriorityBlockingQueue<NetworkTask<*>>,
     private val maxRetries: Int = 3,
     private val backoffTime: Long = 1000L,
     private val taskScope: CoroutineScope
 ) {
-    private val gson = Gson()  // Inject Gson
-    private val mutex = Mutex()  // Mutex to protect shared state
+    private val gson = Gson()
+    private val mutex = Mutex()
     private var isRunning = true
 
     // Modify to return Deferred<Result<T>>
-    suspend fun <T> addTask(task: NetworkTask<T>): Deferred<Result<T>> {
+    internal suspend fun <T> addTask(task: NetworkTask<T>): Deferred<Result<T>> {
         val deferred = CompletableDeferred<Result<T>>()
 
         mutex.withLock {
-            taskQueue.put(task)  // Thread-safe access to taskQueue
+            taskQueue.put(task)
+            executeRequest(task)
         }
-
-        taskScope.launch {
-            executeTaskWithRetry(task, deferred)
-        }
-
         return deferred
     }
 
@@ -56,15 +56,15 @@ class PriorityTaskExecutor @Inject constructor(
         }
     }
 
-    private suspend fun <T> executeTaskWithRetry(task: NetworkTask<T>, deferred: CompletableDeferred<Result<T>>) {
+    // Existing retry executor, adapted to return Result<T> (not Deferred)
+    private suspend fun <T> executeTaskWithRetry(task: NetworkTask<T>): Result<T> {
         var lastError: Throwable? = null
         var attempts = 0
         while (attempts < maxRetries) {
             try {
                 val result = executeRequest(task)
                 if (result.isSuccess) {
-                    deferred.complete(Result.success(result.getOrThrow()))  // Complete with success
-                    return
+                    return Result.success(result.getOrThrow())
                 }
             } catch (e: Exception) {
                 lastError = e
@@ -74,7 +74,16 @@ class PriorityTaskExecutor @Inject constructor(
                 }
             }
         }
-        deferred.complete(Result.failure(lastError ?: Exception("Unknown error")))  // Complete with failure
+        return Result.failure(lastError ?: Exception("Unknown error"))
+    }
+
+    // Overloaded existing method, if you still want Deferred style:
+    private suspend fun <T> executeTaskWithRetry(
+        task: NetworkTask<T>,
+        deferred: CompletableDeferred<Result<T>>
+    ) {
+        val result = executeTaskWithRetry(task)
+        if (result.isSuccess) deferred.complete(result) else deferred.completeExceptionally(result.exceptionOrNull()!!)
     }
 
     private suspend fun <T> executeRequest(task: NetworkTask<T>): Result<T> = withContext(taskScope.coroutineContext) {
@@ -94,9 +103,7 @@ class PriorityTaskExecutor @Inject constructor(
 
             connection.connect()
             val response = connection.inputStream.bufferedReader().use { it.readText() }
-            val type = object : TypeToken<T>() {}.type
-            val result: T = deserializeResponse(response, type)
-
+            val result: T = deserializeResponse(response, object : TypeToken<T>() {}.type)
             return@withContext Result.success(result)
         } catch (e: Exception) {
             return@withContext Result.failure(e)
@@ -109,20 +116,18 @@ class PriorityTaskExecutor @Inject constructor(
         return gson.fromJson(response, type)
     }
 
-    // Cancels all tasks in the queue
     suspend fun cancelAllTasks() {
         mutex.withLock {
-            taskQueue.clear()  // Clear any remaining tasks in the queue
+            taskQueue.clear()
         }
     }
 
     fun stopProcessing() {
-        // Ensure we safely modify isRunning state using a mutex
         taskScope.launch {
             mutex.withLock {
                 isRunning = false
             }
         }
-        taskScope.cancel()  // Cancel the entire task scope and all related coroutines
+        taskScope.cancel()
     }
 }

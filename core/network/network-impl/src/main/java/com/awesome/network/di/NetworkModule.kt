@@ -1,10 +1,13 @@
+package com.awesome.network.di
 
+import com.awesome.network_api.Network
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.util.concurrent.Executors
@@ -13,24 +16,27 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-internal object NetworkModule {
+object NetworkModule {
 
-    // Provide a fixed thread pool CoroutineDispatcher based on available processors
     @Provides
     @Singleton
     fun provideCoroutineDispatcher(): CoroutineDispatcher {
         return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()).asCoroutineDispatcher()
     }
 
-    // Provide the PriorityTaskExecutor as a Singleton
     @Provides
     @Singleton
-    fun providePriorityTaskExecutor(dispatcher: CoroutineDispatcher): PriorityTaskExecutor {
+    fun providePriorityTaskExecutor(): PriorityTaskExecutor {
         return PriorityTaskExecutor(
             taskQueue = PriorityBlockingQueue(1) { task1: NetworkTask<*>, task2: NetworkTask<*> ->
                 task2.priority.ordinal - task1.priority.ordinal
             },
-            taskScope = CoroutineScope(SupervisorJob() + dispatcher)
+            taskScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         )
+    }
+
+    @Provides
+    fun provideNetwork(priorityTaskExecutor: PriorityTaskExecutor): Network {
+        return NetworkImpl(priorityTaskExecutor)
     }
 }
