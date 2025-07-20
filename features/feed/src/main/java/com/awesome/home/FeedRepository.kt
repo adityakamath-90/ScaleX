@@ -9,9 +9,11 @@ import javax.inject.Inject
 
 class FeedRepository @Inject constructor(private val network: Network) {
 
-    fun getRecentFeed(): Result<List<FeedItem>> {
+    private var pageNo: Int = 0
+
+    fun getFeed(): Result<List<FeedItem>> {
         val urlConnection =
-            URL("https://jsonplaceholder.typicode.com/photos").openConnection() as HttpURLConnection
+            URL("https://jsonplaceholder.typicode.com/photos/?page=${pageNo++}&limit=20").openConnection() as HttpURLConnection
         val response = urlConnection.inputStream.bufferedReader().use { it.readText() }
         val itemType = object : TypeToken<List<FeedItem>>() {}.type
         return Result.success(Gson().fromJson(response, itemType))

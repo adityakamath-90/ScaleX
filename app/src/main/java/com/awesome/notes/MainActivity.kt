@@ -20,9 +20,10 @@ class MainActivity : ComponentActivity() {
         val feedViewModel by viewModels<FeedViewModel>()
         setContent {
             MyApplicationTheme {
-                FeedScreen(feedItemList = feedViewModel.stateFlow.collectAsStateWithLifecycle().value)
+                FeedScreen(
+                    feedItemList = feedViewModel.stateFlow.collectAsStateWithLifecycle(emptyList()).value,
+                    onLoadMore = { feedViewModel.getFeed() })
             }
         }
-
     }
 }
