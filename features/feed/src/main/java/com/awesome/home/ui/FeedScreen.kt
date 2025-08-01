@@ -1,3 +1,4 @@
+import android.R.attr.end
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,13 +24,14 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.awesome.home.presentation.FeedViewModel.FeedDetail
 import com.awesome.home.presentation.FeedViewModel.FeedItem
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun FeedScreen(
     modifier: Modifier = Modifier,
     feedItemList: List<FeedItem>,
-    onLoadVisibleItems: (start: Int, end: Int) -> Unit,
+    onLoadVisibleItems: (end: Int) -> Unit,
 ) {
     Scaffold(
         modifier = modifier
@@ -46,7 +48,7 @@ fun FeedScreen(
 fun FeedItemList(
     modifier: Modifier = Modifier,
     feedItemList: List<FeedItem>,
-    onLoadVisibleItems: (start: Int, end: Int) -> Unit
+    onLoadVisibleItems: (end: Int) -> Unit
 ) {
     val listState = rememberLazyListState()
 
@@ -69,11 +71,11 @@ fun FeedItemList(
             listState.isScrollInProgress to listState.layoutInfo.visibleItemsInfo
         }
             .distinctUntilChanged()
-            .collect { (isScrolling, visibleItems) ->
+            .collectLatest { (isScrolling, visibleItems) ->
                 if (!isScrolling && visibleItems.isNotEmpty()) {
                     val firstVisible = visibleItems.first().index
-                    val lastVisible = visibleItems.last().index
-                    onLoadVisibleItems(firstVisible, lastVisible)
+                    visibleItems.last().index
+                    onLoadVisibleItems(firstVisible)
                 }
             }
     }
@@ -110,7 +112,7 @@ fun FeedItemListPreview() {
     val feedItemList = feedItems()
     FeedItemList(
         feedItemList = feedItemList,
-        onLoadVisibleItems = { start, end -> },
+        onLoadVisibleItems = { end },
     )
 }
 
@@ -120,7 +122,7 @@ fun FeedScreenPreview() {
     val feedItemList = feedItems()
     FeedScreen(
         feedItemList = feedItemList,
-        onLoadVisibleItems = { start, end -> }
+        onLoadVisibleItems = { end }
     )
 }
 

@@ -30,58 +30,64 @@ class FeedViewModel @Inject constructor(
         .onStart { getFeedIds() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Load 1000 feed item IDs from local assets (e.g., topicIds.json)
+    // Keep track of which indices have already been prefetched
+    private val prefetchedIndices = mutableSetOf<Int>()
+
+    private val handler = CoroutineExceptionHandler { _, exception ->
+        Log.e("FeedViewModel", "Coroutine exception: ${exception.localizedMessage}", exception)
+    }
+
     fun getFeedIds() {
         viewModelScope.launch(Dispatchers.IO) {
             val feedTopics = repository.fetchIdentifiers()
             _stateFlow.value = feedTopics.take(1000).map {
                 FeedItem(id = it.topicId, detail = null)
             }
-
-            // Optionally prefetch the first page
-            preFetchFeed(offset = 0, limit = 10)
         }
     }
 
-    // Prefetch details for a slice (e.g., 10 items at a time)
     fun preFetchFeed(offset: Int, limit: Int = 10) {
-        val handler = CoroutineExceptionHandler { _, exception ->
-            Log.e("FeedViewModel", "Coroutine exception: ${exception.localizedMessage}", exception)
-        }
-
+        val rangeToFetch =
+            (offset until offset + limit).filterNot { prefetchedIndices.contains(it) }
+        if (rangeToFetch.isEmpty()) return
+        Log.d("FeedViewModel", "Pre-fetching items: $rangeToFetch")
         viewModelScope.launch(handler) {
             withContext(Dispatchers.IO) {
                 supervisorScope {
-                    val feedItems = _stateFlow.value.drop(offset).take(limit)
+                    val currentItems = _stateFlow.value
 
-                    val detailAsyncList = feedItems.map { item ->
+                    val itemsToFetch = rangeToFetch.mapNotNull { index ->
+                        currentItems.getOrNull(index)?.takeIf { it.detail == null }?.id
+                    }
+
+                    val detailResults = itemsToFetch.map { id ->
                         async {
                             try {
-                                repository.feedDetail(item.id)
+                                repository.feedDetail(id)
                             } catch (e: Exception) {
                                 if (e is CancellationException) throw e
-                                Log.e("FeedViewModel", "Error for id ${item.id}: ${e.message}")
+                                Log.e("FeedViewModel", "Error for id $id: ${e.message}")
                                 null
                             }
                         }
+                    }.awaitAll()
+
+                    val updatedList = currentItems.mapIndexed { index, item ->
+                        if (index in rangeToFetch) {
+                            val detail = detailResults.getOrNull(rangeToFetch.indexOf(index))
+                            if (item.detail == null && detail != null) {
+                                item.copy(
+                                    detail = FeedDetail(detail.title, detail.thumbnailUrl)
+                                )
+                            } else item
+                        } else item
                     }
 
-                    val details = detailAsyncList.awaitAll()
-
-                    val currentItems = _stateFlow.value.toMutableList()
-
-                    details.forEachIndexed { index, detail ->
-                        val targetIndex = offset + index
-                        if (targetIndex < currentItems.size && detail != null) {
-                            currentItems[targetIndex] = FeedItem(
-                                id = detail.id!!,
-                                detail = FeedDetail(detail.title, detail.thumbnailUrl)
-                            )
-                        }
+                    if (updatedList != currentItems) {
+                        _stateFlow.value = updatedList
                     }
 
-                    _stateFlow.value = currentItems
-                    Log.d("FeedViewModel", "Updated items from $offset to ${offset + limit}")
+                    prefetchedIndices.addAll(rangeToFetch)
                 }
             }
         }
