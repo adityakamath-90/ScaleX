@@ -1,10 +1,9 @@
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,34 +21,32 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.awesome.home.FeedRepository
+import com.awesome.home.presentation.FeedViewModel.FeedDetail
+import com.awesome.home.presentation.FeedViewModel.FeedItem
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 
 @Composable
 fun FeedScreen(
     modifier: Modifier = Modifier,
-    feedItemList: List<FeedRepository.FeedItem>,
-    onLoadMore: () -> Unit
+    feedItemList: List<FeedItem>,
+    onLoadVisibleItems: (start: Int, end: Int) -> Unit,
 ) {
-    Scaffold { paddingValues ->
+    Scaffold(
+        modifier = modifier
+    ) { paddingValues ->
         FeedItemList(
-            modifier = modifier
-                .padding(paddingValues)
-                .background(color = Color.Blue)
-                .padding(4.dp),
+            modifier = Modifier.padding(paddingValues),
             feedItemList = feedItemList,
-            onLoadMore = onLoadMore
+            onLoadVisibleItems = onLoadVisibleItems
         )
     }
 }
 
-
 @Composable
 fun FeedItemList(
     modifier: Modifier = Modifier,
-    feedItemList: List<FeedRepository.FeedItem>,
-    onLoadMore: () -> Unit
+    feedItemList: List<FeedItem>,
+    onLoadVisibleItems: (start: Int, end: Int) -> Unit
 ) {
     val listState = rememberLazyListState()
 
@@ -57,39 +54,37 @@ fun FeedItemList(
         modifier = modifier,
         state = listState
     ) {
-        items(feedItemList) { pokemon ->
+        itemsIndexed(feedItemList, key = { _, item -> item.id }) { index, feedItem ->
             FeedItem(
                 modifier = Modifier
                     .padding(4.dp)
                     .fillMaxWidth(),
-                feedItem = pokemon
+                feedItem = feedItem
             )
         }
     }
 
     LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo }
-            .map { visibleItems ->
-                val lastVisibleItem = visibleItems.lastOrNull()?.index ?: 0
-                val totalItems = listState.layoutInfo.totalItemsCount
-                lastVisibleItem >= totalItems - 3
-            }
+        snapshotFlow {
+            listState.isScrollInProgress to listState.layoutInfo.visibleItemsInfo
+        }
             .distinctUntilChanged()
-            .collect { shouldLoadMore ->
-                if (shouldLoadMore) {
-                    onLoadMore()
+            .collect { (isScrolling, visibleItems) ->
+                if (!isScrolling && visibleItems.isNotEmpty()) {
+                    val firstVisible = visibleItems.first().index
+                    val lastVisible = visibleItems.last().index
+                    onLoadVisibleItems(firstVisible, lastVisible)
                 }
             }
     }
 }
 
-
 @Composable
-fun FeedItem(modifier: Modifier, feedItem: FeedRepository.FeedItem) {
+fun FeedItem(modifier: Modifier, feedItem: FeedItem) {
     Card(modifier = modifier, content = {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
-                model = "https://picsum.photos/seed/${(0..100).random()}/200/200",
+                model = feedItem.detail?.url,
                 contentDescription = "Feed image",
                 placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
                 error = ColorPainter(MaterialTheme.colorScheme.errorContainer),
@@ -98,57 +93,53 @@ fun FeedItem(modifier: Modifier, feedItem: FeedRepository.FeedItem) {
                     .size(64.dp)
             )
             Text(
-                text = feedItem.title,
+                text = "${feedItem.id} ${feedItem.detail?.name ?: ""}",
                 Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
-                color = Color.White
+                color = Color.Black
             )
         }
-    }, colors = CardDefaults.cardColors(containerColor = Color.Red))
+    }, colors = CardDefaults.cardColors(containerColor = Color.White))
 
 }
-
-
 
 @Preview
 @Composable
 fun FeedItemListPreview() {
-    val feedItemList = feedRepositoryFeedItems()
+    val feedItemList = feedItems()
     FeedItemList(
         feedItemList = feedItemList,
-        onLoadMore = {},
+        onLoadVisibleItems = { start, end -> },
     )
 }
 
 @Preview
 @Composable
 fun FeedScreenPreview() {
-    val feedItemList = feedRepositoryFeedItems()
+    val feedItemList = feedItems()
     FeedScreen(
         feedItemList = feedItemList,
-        onLoadMore = {},
+        onLoadVisibleItems = { start, end -> }
     )
 }
 
 @Preview
 @Composable
-fun FeedStemPreview() {
-    val feedItem = feedRepositoryFeedItems().first()
+fun FeedItemPreview() {
+    val feedItem = feedItems().first()
     FeedItem(Modifier.fillMaxWidth(), feedItem = feedItem)
 }
 
-private fun feedRepositoryFeedItems(): MutableList<FeedRepository.FeedItem> {
-    val feedItemList = mutableListOf<FeedRepository.FeedItem>()
+private fun feedItems(): MutableList<FeedItem> {
+    val feedItemList = mutableListOf<FeedItem>()
     for (i in 0..15) {
         feedItemList.add(
-            FeedRepository.FeedItem(
+            FeedItem(
                 i,
-                "Feed $i",
-                "https://feedapi.co/api/v2/feed/$i"
+                FeedDetail(i.toString(), "https://feedapi.co/api/v2/feed/$i")
             )
         )
     }
     return feedItemList
 }
-
