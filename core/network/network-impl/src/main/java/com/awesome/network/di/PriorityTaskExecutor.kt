@@ -1,6 +1,5 @@
 package com.awesome.network.di
 
-import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -11,9 +10,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.lang.reflect.Type
 import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -21,118 +18,107 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 class PriorityTaskExecutor @Inject constructor(
     private val taskQueue: PriorityBlockingQueue<NetworkTask<*>>,
+    private val okHttpClient: OkHttpClient,
+    private val taskScope: CoroutineScope,
     private val maxRetries: Int = 3,
     private val backoffTime: Long = 1000L,
-    private val taskScope: CoroutineScope,
-    private val okHttpClient: OkHttpClient
+    private val workerCount: Int = Runtime.getRuntime().availableProcessors()
 ) {
     private val gson = Gson()
+
+    @Volatile
     private var isRunning = true
 
-    // Modify to return Deferred<Result<T>>
-    internal suspend fun <T> addTask(task: NetworkTask<T>): Result<T> {
-            taskQueue.put(task)
-            return executeRequest()
+    init {
+        repeat(workerCount) { index ->
+            taskScope.launch {
+                processTasks()
+            }
+        }
     }
 
-    @VisibleForTesting
-    private suspend fun processTasks() {
+    suspend fun <T> addTask(task: NetworkTask<T>): Result<T> {
+        taskQueue.put(task)
+        return task.deferred.await()
+    }
+
+    private fun processTasks() {
         while (isRunning) {
-            val task = taskQueue.poll(100, TimeUnit.MILLISECONDS)
-            if (task != null) {
-                taskScope.launch {
-                    //executeTaskWithRetry(task, CompletableDeferred())
+            val task = taskQueue.poll(100, TimeUnit.MILLISECONDS) ?: continue
+            taskScope.launch {
+                val result = try {
+                    @Suppress("UNCHECKED_CAST")
+                    executeTaskWithRetry(task as NetworkTask<Any>)
+                } catch (e: Exception) {
+                    Result.failure(e)
                 }
+                @Suppress("UNCHECKED_CAST")
+                (task as NetworkTask<Any>).deferred.complete(result)
             }
         }
     }
 
     private suspend fun <T> executeTaskWithRetry(task: NetworkTask<T>): Result<T> {
         var lastError: Throwable? = null
-        var attempts = 0
-        while (attempts < maxRetries) {
+        var attempt = 0
+        while (attempt < maxRetries) {
             try {
-                val result: Result<T> = executeRequest()
-                if (result.isSuccess) {
-                    return Result.success(result.getOrThrow())
-                }
+                val result = executeRequest(task)
+                if (result.isSuccess) return result
             } catch (e: Exception) {
                 lastError = e
-                attempts++
-                if (attempts < maxRetries) {
-                    delay(backoffTime)
-                }
+                delay(backoffTime)
             }
+            attempt++
         }
         return Result.failure(lastError ?: Exception("Unknown error"))
     }
 
-    private suspend fun <T> executeRequest(): Result<T> = withContext(taskScope.coroutineContext) {
-        val task = taskQueue.poll()
-            ?: return@withContext Result.failure<T>(IllegalStateException("No task available"))
+    private suspend fun <T> executeRequest(task: NetworkTask<T>): Result<T> =
+        withContext(taskScope.coroutineContext) {
+            try {
+                val builder = Request.Builder().url(task.url)
 
-        try {
-            val builder = Request.Builder()
-                .url(task.url)
-
-            // Add headers if any
-            task.headers?.forEach { (key, value) ->
-                builder.addHeader(key, value)
-            }
-
-            // Prepare request body if present
-            val contentType = "application/json; charset=utf-8".toMediaTypeOrNull()
-            val requestBody: RequestBody? = task.body?.toRequestBody(contentType)
-
-            // Set HTTP method
-            when (task.method.uppercase()) {
-                "POST" -> builder.post(requestBody ?: "".toRequestBody())
-                "PUT" -> builder.put(requestBody ?: "".toRequestBody())
-                "DELETE" -> {
-                    if (requestBody != null) {
-                        builder.delete(requestBody)
-                    } else {
-                        builder.delete()
-                    }
+                task.headers?.forEach { (key, value) ->
+                    builder.addHeader(key, value)
                 }
 
-                else -> builder.get()
+                val contentType = "application/json; charset=utf-8".toMediaTypeOrNull()
+                val requestBody = task.body?.toRequestBody(contentType)
+
+                when (task.method.uppercase()) {
+                    "POST" -> builder.post(requestBody ?: "".toRequestBody())
+                    "PUT" -> builder.put(requestBody ?: "".toRequestBody())
+                    "DELETE" -> {
+                        if (requestBody != null) builder.delete(requestBody)
+                        else builder.delete()
+                    }
+
+                    else -> builder.get()
+                }
+
+                val response = okHttpClient.newCall(builder.build()).execute()
+                val bodyString = response.body?.string().orEmpty()
+
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure<T>(Exception("HTTP ${response.code}"))
+                }
+
+                val parsed: T = gson.fromJson(bodyString, task.responseType)
+                Result.success(parsed)
+
+            } catch (e: Exception) {
+                Result.failure(e)
             }
-
-            val request = builder.build()
-
-            // Execute the HTTP request
-            val response = okHttpClient.newCall(request).execute()
-
-            val responseBody = response.body?.string() ?: ""
-
-            if (!response.isSuccessful) {
-                return@withContext Result.failure<T>(Exception("HTTP error code: ${response.code}"))
-            }
-
-            val result: T = deserializeResponse(responseBody, task.responseType)
-
-            Result.success(result)
-
-        } catch (e: Exception) {
-            Result.failure(e)
         }
-    }
 
-
-    private fun <T> deserializeResponse(response: String, type: Type): T {
-        return gson.fromJson(response, type)
-    }
-
-    suspend fun cancelAllTasks() {
-            taskQueue.clear()
-
+    fun cancelAllTasks() {
+        taskQueue.clear()
     }
 
     fun stopProcessing() {
-        taskScope.launch {
-            isRunning = false
-        }
+        isRunning = false
         taskScope.cancel()
     }
 }
+
