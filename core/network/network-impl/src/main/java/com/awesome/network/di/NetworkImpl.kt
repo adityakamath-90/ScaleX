@@ -2,7 +2,7 @@ package com.awesome.network.di
 
 import com.awesome.network_api.Network
 import com.awesome.network_api.TaskPriority
-import kotlinx.coroutines.Deferred
+import java.lang.reflect.Type
 import javax.inject.Inject
 
 internal class NetworkImpl @Inject constructor(
@@ -14,33 +14,17 @@ internal class NetworkImpl @Inject constructor(
         method: String,
         body: String?,
         headers: Map<String, String>?,
-        priority: TaskPriority
-    )  : Deferred<Result<T>>{
+        priority: TaskPriority,
+        responseType: Type
+    ): Result<T> {
         val task = NetworkTask<T>(
             url,
             method,
             body,
             headers,
             priority,
+            responseType,
         )
         return taskExecutor.addTask(task)
-    }
-
-    override suspend fun <T> executeAsync(
-        url: String,
-        method: String,
-        body: String?,
-        headers: Map<String, String>?,
-        priority: TaskPriority,
-        onResult: (Result<T>) -> Unit
-    ) {
-        val task = NetworkTask<T>(
-            url,
-            method,
-            body,
-            headers,
-            priority
-        )
-        taskExecutor.addTask(task)
     }
 }

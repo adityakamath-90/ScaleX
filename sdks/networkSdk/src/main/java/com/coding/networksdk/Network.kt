@@ -2,7 +2,7 @@ package com.coding.networksdk
 
 import com.awesome.network_api.Network
 import com.awesome.network_api.TaskPriority
-import kotlinx.coroutines.Deferred
+import java.lang.reflect.Type
 import javax.inject.Inject
 
 class Network @Inject constructor(private val network: Network) {
@@ -12,19 +12,16 @@ class Network @Inject constructor(private val network: Network) {
         body: String? = null,
         headers: Map<String, String>? = null,
         priority: Priority = Priority.MEDIUM,
-    ): Deferred<Result<T>> {
-        return network.execute(url, method, body, headers, priority.mapToTaskPriority())
-    }
-
-    suspend fun <T> executeAsync(
-        url: String,
-        method: String,
-        body: String? = null,
-        headers: Map<String, String>? = null,
-        priority: Priority = Priority.MEDIUM,
-        onResult: (Result<T>) -> Unit
-    ) {
-        network.executeAsync(url, method, body, headers, priority.mapToTaskPriority(), onResult)
+        responseType: Type
+    ): Result<T> {
+        return network.execute(
+            url,
+            method,
+            body,
+            headers,
+            priority.mapToTaskPriority(),
+            responseType
+        )
     }
 }
 

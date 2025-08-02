@@ -1,6 +1,7 @@
 package com.awesome.network.di
 
 import com.awesome.network_api.TaskPriority
+import java.lang.reflect.Type
 
 data class NetworkTask<T>(
     val url: String,
@@ -8,4 +9,5 @@ data class NetworkTask<T>(
     val body: String? = null,
     val headers: Map<String, String>? = null,
     val priority: TaskPriority,
+    val responseType: Type
 )

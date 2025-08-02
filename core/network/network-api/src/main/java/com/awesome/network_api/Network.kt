@@ -1,6 +1,6 @@
 package com.awesome.network_api
 
-import kotlinx.coroutines.Deferred
+import java.lang.reflect.Type
 
 interface Network {
     suspend fun <T> execute(
@@ -9,16 +9,8 @@ interface Network {
         body: String? = null,
         headers: Map<String, String>? = null,
         priority: TaskPriority = TaskPriority.MEDIUM,
-    ) : Deferred<Result<T>>
-
-    suspend fun <T> executeAsync(
-        url: String,
-        method: String,
-        body: String? = null,
-        headers: Map<String, String>? = null,
-        priority: TaskPriority = TaskPriority.MEDIUM,
-        onResult: (Result<T>) -> Unit
-    )
+        responseType: Type
+    ): Result<T>
 }
 
 
