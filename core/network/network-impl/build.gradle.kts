@@ -40,6 +40,8 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     implementation(libs.gson)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.coroutines.core)
     implementation(project(":core:network:network-api"))
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

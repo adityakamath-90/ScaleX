@@ -9,9 +9,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.lang.reflect.Type
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -21,7 +24,8 @@ class PriorityTaskExecutor @Inject constructor(
     private val taskQueue: PriorityBlockingQueue<NetworkTask<*>>,
     private val maxRetries: Int = 3,
     private val backoffTime: Long = 1000L,
-    private val taskScope: CoroutineScope
+    private val taskScope: CoroutineScope,
+    private val okHttpClient: OkHttpClient
 ) {
     private val gson = Gson()
     private val mutex = Mutex()
@@ -72,30 +76,56 @@ class PriorityTaskExecutor @Inject constructor(
 
     private suspend fun <T> executeRequest(): Result<T> = withContext(taskScope.coroutineContext) {
         val task = taskQueue.poll()
-        val connection = URL(task.url).openConnection() as HttpURLConnection
-        try {
-            connection.requestMethod = task.method
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
-            task.headers?.forEach { (key, value) -> connection.setRequestProperty(key, value) }
+            ?: return@withContext Result.failure<T>(IllegalStateException("No task available"))
 
-            task.body?.let {
-                if (task.method == "POST" || task.method == "PUT") {
-                    connection.doOutput = true
-                    connection.outputStream.write(it.toByteArray())
-                }
+        try {
+            val builder = Request.Builder()
+                .url(task.url)
+
+            // Add headers if any
+            task.headers?.forEach { (key, value) ->
+                builder.addHeader(key, value)
             }
 
-            connection.connect()
-            val response = connection.inputStream.bufferedReader().use { it.readText() }
-            val result: T = deserializeResponse(response, task.responseType)
-            return@withContext Result.success(result)
+            // Prepare request body if present
+            val contentType = "application/json; charset=utf-8".toMediaTypeOrNull()
+            val requestBody: RequestBody? = task.body?.toRequestBody(contentType)
+
+            // Set HTTP method
+            when (task.method.uppercase()) {
+                "POST" -> builder.post(requestBody ?: "".toRequestBody())
+                "PUT" -> builder.put(requestBody ?: "".toRequestBody())
+                "DELETE" -> {
+                    if (requestBody != null) {
+                        builder.delete(requestBody)
+                    } else {
+                        builder.delete()
+                    }
+                }
+
+                else -> builder.get()
+            }
+
+            val request = builder.build()
+
+            // Execute the HTTP request
+            val response = okHttpClient.newCall(request).execute()
+
+            val responseBody = response.body?.string() ?: ""
+
+            if (!response.isSuccessful) {
+                return@withContext Result.failure<T>(Exception("HTTP error code: ${response.code}"))
+            }
+
+            val result: T = deserializeResponse(responseBody, task.responseType)
+
+            Result.success(result)
+
         } catch (e: Exception) {
-            return@withContext Result.failure(e)
-        } finally {
-            connection.disconnect()
+            Result.failure(e)
         }
     }
+
 
     private fun <T> deserializeResponse(response: String, type: Type): T {
         return gson.fromJson(response, type)

@@ -23,7 +23,7 @@ class FeedRepository @Inject constructor(
     suspend fun feedDetail(userid: Int?): FeedDetail {
         val response = network.execute<UserResponse>(
             "https://api.slingacademy.com/v1/sample-data/users/${userid}", "GET",
-            responseType = UserResponse::class.java
+            responseType = UserResponse::class.java,
         )
         if (!response.isSuccess) {
             throw IOException("Unexpected code $response")

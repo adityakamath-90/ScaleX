@@ -2,6 +2,7 @@ package com.coding.networksdk
 
 import com.awesome.network_api.Network
 import com.awesome.network_api.TaskPriority
+import kotlinx.coroutines.CompletableDeferred
 import java.lang.reflect.Type
 import javax.inject.Inject
 
@@ -12,7 +13,8 @@ class Network @Inject constructor(private val network: Network) {
         body: String? = null,
         headers: Map<String, String>? = null,
         priority: Priority = Priority.MEDIUM,
-        responseType: Type
+        responseType: Type,
+        completableDeferred: CompletableDeferred<Result<T>> = CompletableDeferred()
     ): Result<T> {
         return network.execute(
             url,
@@ -20,7 +22,8 @@ class Network @Inject constructor(private val network: Network) {
             body,
             headers,
             priority.mapToTaskPriority(),
-            responseType
+            responseType,
+            completableDeferred
         )
     }
 }

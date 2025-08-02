@@ -14,9 +14,9 @@ junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 kotlin = "2.0.21"
 kotlinxCoroutinesAndroid = "1.10.1"
+kotlinxCoroutinesCore = "1.10.2"
 mockitoKotlinVersion = "4.1.0"
 mockk = "1.13.2"
-okhttp = "4.12.0"
 org-jetbrains-kotlin-android = "2.1.20"
 lifecycleViewmodelKtx = "2.8.7"
 androidxLifecycle = "2.8.7"
@@ -34,6 +34,7 @@ androidxNavigation = "2.8.5"
 androidxHiltNavigationCompose = "1.2.0"
 jetbrainsKotlinJvm = "2.1.20"
 uiTooling = "1.8.3"
+okhttp = "4.12.0"
 
 
 [libraries]
@@ -43,6 +44,8 @@ androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomRunt
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesCore" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-android-testing = { module = "com.google.dagger:hilt-android-testing", version.ref = "hiltAndroid" }
