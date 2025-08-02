@@ -5,9 +5,8 @@ import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
@@ -28,23 +27,18 @@ class PriorityTaskExecutor @Inject constructor(
     private val okHttpClient: OkHttpClient
 ) {
     private val gson = Gson()
-    private val mutex = Mutex()
     private var isRunning = true
 
     // Modify to return Deferred<Result<T>>
     internal suspend fun <T> addTask(task: NetworkTask<T>): Result<T> {
-        mutex.withLock {
             taskQueue.put(task)
             return executeRequest()
-        }
     }
 
     @VisibleForTesting
     private suspend fun processTasks() {
         while (isRunning) {
-            val task = mutex.withLock {
-                taskQueue.poll(100, TimeUnit.MILLISECONDS)
-            }
+            val task = taskQueue.poll(100, TimeUnit.MILLISECONDS)
             if (task != null) {
                 taskScope.launch {
                     //executeTaskWithRetry(task, CompletableDeferred())
@@ -53,26 +47,25 @@ class PriorityTaskExecutor @Inject constructor(
         }
     }
 
-    // Existing retry executor, adapted to return Result<T> (not Deferred)
-//    private suspend fun <T> executeTaskWithRetry(task: NetworkTask<T>): Result<T> {
-//        var lastError: Throwable? = null
-//        var attempts = 0
-//        while (attempts < maxRetries) {
-//            try {
-//                val result = executeRequest()
-//                if (result.isSuccess) {
-//                    return Result.success(result.getOrThrow())
-//                }
-//            } catch (e: Exception) {
-//                lastError = e
-//                attempts++
-//                if (attempts < maxRetries) {
-//                    delay(backoffTime)
-//                }
-//            }
-//        }
-//        return Result.failure(lastError ?: Exception("Unknown error"))
-//    }
+    private suspend fun <T> executeTaskWithRetry(task: NetworkTask<T>): Result<T> {
+        var lastError: Throwable? = null
+        var attempts = 0
+        while (attempts < maxRetries) {
+            try {
+                val result: Result<T> = executeRequest()
+                if (result.isSuccess) {
+                    return Result.success(result.getOrThrow())
+                }
+            } catch (e: Exception) {
+                lastError = e
+                attempts++
+                if (attempts < maxRetries) {
+                    delay(backoffTime)
+                }
+            }
+        }
+        return Result.failure(lastError ?: Exception("Unknown error"))
+    }
 
     private suspend fun <T> executeRequest(): Result<T> = withContext(taskScope.coroutineContext) {
         val task = taskQueue.poll()
@@ -132,16 +125,13 @@ class PriorityTaskExecutor @Inject constructor(
     }
 
     suspend fun cancelAllTasks() {
-        mutex.withLock {
             taskQueue.clear()
-        }
+
     }
 
     fun stopProcessing() {
         taskScope.launch {
-            mutex.withLock {
-                isRunning = false
-            }
+            isRunning = false
         }
         taskScope.cancel()
     }
