@@ -8,7 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.awesome.home.FeedViewModel
+import com.awesome.home.presentation.FeedViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -22,8 +22,10 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 FeedScreen(
                     feedItemList = feedViewModel.stateFlow.collectAsStateWithLifecycle(emptyList()).value,
-                    onLoadMore = { feedViewModel.getFeed() })
+                    onLoadVisibleItems = { end -> feedViewModel.preFetchFeed(offset = end) },
+                )
             }
         }
     }
 }
+
