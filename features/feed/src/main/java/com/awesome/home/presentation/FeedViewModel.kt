@@ -93,6 +93,27 @@ class FeedViewModel @Inject constructor(
         }
     }
 
+    fun updateFeedItem(topicId: Int) {
+        viewModelScope.launch {
+            val updatedItem = async {
+                repository.feedDetail(topicId)
+            }.await()
+            Log.d("FeedViewModel", "Updated item: $updatedItem")
+            val currentItems = _stateFlow.value
+            val updatedList = currentItems.map { item ->
+                if (item.id == topicId) {
+                    item.copy(
+                        detail = FeedDetail(
+                            name = "${updatedItem.title} : Refreshed",
+                            url = updatedItem.thumbnailUrl
+                        )
+                    )
+                } else item
+            }
+            _stateFlow.value = updatedList
+        }
+    }
+
     @Immutable
     data class FeedItem(
         val id: Int,

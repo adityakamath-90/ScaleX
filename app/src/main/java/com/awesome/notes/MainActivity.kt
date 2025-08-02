@@ -23,6 +23,7 @@ class MainActivity : ComponentActivity() {
                 FeedScreen(
                     feedItemList = feedViewModel.stateFlow.collectAsStateWithLifecycle(emptyList()).value,
                     onLoadVisibleItems = { end -> feedViewModel.preFetchFeed(offset = end) },
+                    onRefreshClicked = { item -> feedViewModel.updateFeedItem(item.id) }
                 )
             }
         }

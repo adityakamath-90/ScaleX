@@ -1,4 +1,5 @@
 import android.R.attr.end
+import android.util.Log
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -6,6 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -33,6 +36,7 @@ fun FeedScreen(
     modifier: Modifier = Modifier,
     feedItemList: List<FeedItem>,
     onLoadVisibleItems: (end: Int) -> Unit,
+    onRefreshClicked: (item: FeedItem) -> Unit
 ) {
     Scaffold(
         modifier = modifier
@@ -40,7 +44,8 @@ fun FeedScreen(
         FeedItemList(
             modifier = Modifier.padding(paddingValues),
             feedItemList = feedItemList,
-            onLoadVisibleItems = onLoadVisibleItems
+            onLoadVisibleItems = onLoadVisibleItems,
+            onRefreshClicked = onRefreshClicked
         )
     }
 }
@@ -49,7 +54,8 @@ fun FeedScreen(
 fun FeedItemList(
     modifier: Modifier = Modifier,
     feedItemList: List<FeedItem>,
-    onLoadVisibleItems: (end: Int) -> Unit
+    onLoadVisibleItems: (end: Int) -> Unit,
+    onRefreshClicked: (FeedItem) -> Unit
 ) {
     val listState = rememberLazyListState()
 
@@ -62,7 +68,8 @@ fun FeedItemList(
                 modifier = Modifier
                     .padding(4.dp)
                     .fillMaxWidth(),
-                feedItem = feedItem
+                feedItem = feedItem,
+                onRefreshClicked = onRefreshClicked
             )
         }
     }
@@ -84,7 +91,7 @@ fun FeedItemList(
 }
 
 @Composable
-fun FeedItem(modifier: Modifier, feedItem: FeedItem) {
+fun FeedItem(modifier: Modifier, feedItem: FeedItem, onRefreshClicked: (FeedItem) -> Unit) {
     Card(modifier = modifier, content = {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
@@ -99,10 +106,19 @@ fun FeedItem(modifier: Modifier, feedItem: FeedItem) {
             Text(
                 text = "${feedItem.id} ${feedItem.detail?.name ?: ""}",
                 Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                color = Color.Black
+                    .padding(8.dp)
+                    .weight(1f),
+                color = Color.Black,
+                textAlign = TextAlign.Start
             )
+            Button(
+                onClick = {
+                    Log.d("FeedItem", "Button clicked")
+                    onRefreshClicked(feedItem)
+                },
+            ) {
+                Text(text = "Refresh", color = Color.White)
+            }
         }
     }, colors = CardDefaults.cardColors(containerColor = Color.White))
 
@@ -114,7 +130,8 @@ fun FeedItemListPreview() {
     val feedItemList = feedItems()
     FeedItemList(
         feedItemList = feedItemList,
-        onLoadVisibleItems = { end },
+        onLoadVisibleItems = { },
+        onRefreshClicked = { }
     )
 }
 
@@ -124,7 +141,8 @@ fun FeedScreenPreview() {
     val feedItemList = feedItems()
     FeedScreen(
         feedItemList = feedItemList,
-        onLoadVisibleItems = { end }
+        onLoadVisibleItems = { end },
+        onRefreshClicked = {}
     )
 }
 
@@ -132,7 +150,7 @@ fun FeedScreenPreview() {
 @Composable
 fun FeedItemPreview() {
     val feedItem = feedItems().first()
-    FeedItem(Modifier.fillMaxWidth(), feedItem = feedItem)
+    FeedItem(Modifier.fillMaxWidth(), feedItem = feedItem, {})
 }
 
 private fun feedItems(): MutableList<FeedItem> {

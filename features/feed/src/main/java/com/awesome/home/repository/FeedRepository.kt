@@ -20,7 +20,7 @@ class FeedRepository @Inject constructor(
         return Gson().fromJson(inputStream, object : TypeToken<List<Topic>>() {}.type)
     }
 
-    suspend fun feedDetail(userid: Int?): FeedDetail {
+    suspend fun feedDetail(userid: Int): FeedDetail {
         val response = network.execute<UserResponse>(
             "https://api.slingacademy.com/v1/sample-data/users/${userid}", "GET",
             responseType = UserResponse::class.java,
@@ -35,7 +35,7 @@ class FeedRepository @Inject constructor(
     }
 
     data class FeedDetail(
-        val id: Int?,
+        val id: Int,
         val title: String?,
         val thumbnailUrl: String?
     )
