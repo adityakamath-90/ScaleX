@@ -1,7 +1,7 @@
 package com.awesome.notes
 
 import FeedScreen
-import MyApplicationTheme
+import ScaleXTheme
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val feedViewModel by viewModels<FeedViewModel>()
         setContent {
-            MyApplicationTheme {
+            ScaleXTheme {
                 FeedScreen(
                     feedItemList = feedViewModel.stateFlow.collectAsStateWithLifecycle(emptyList()).value,
                     onLoadVisibleItems = { end -> feedViewModel.preFetchFeed(offset = end) },
