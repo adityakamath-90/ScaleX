@@ -23,7 +23,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Reddit"
+rootProject.name = "ScaleX"
 include(":app")
 include(":home")
 include(":core:designsystem")
