@@ -25,6 +25,7 @@ import coil.compose.AsyncImage
 import com.awesome.home.presentation.FeedViewModel.FeedDetail
 import com.awesome.home.presentation.FeedViewModel.FeedItem
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
@@ -71,6 +72,7 @@ fun FeedItemList(
             listState.isScrollInProgress to listState.layoutInfo.visibleItemsInfo
         }
             .distinctUntilChanged()
+            .debounce(300)
             .collectLatest { (isScrolling, visibleItems) ->
                 if (!isScrolling && visibleItems.isNotEmpty()) {
                     val firstVisible = visibleItems.first().index

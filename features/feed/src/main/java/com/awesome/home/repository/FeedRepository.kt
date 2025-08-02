@@ -1,13 +1,10 @@
 package com.awesome.home.repository
 
 import android.content.Context
-import android.util.Log
 import com.coding.networksdk.Network
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import okio.IOException
 import javax.inject.Inject
 
@@ -17,8 +14,6 @@ class FeedRepository @Inject constructor(
     @ApplicationContext val context: Context
 ) {
 
-    val client: OkHttpClient = OkHttpClient.Builder().build()
-
     suspend fun fetchIdentifiers(): List<Topic> {
         val inputStream =
             context.assets.open("topicIds.json").bufferedReader().use { it.readText() }
@@ -26,16 +21,16 @@ class FeedRepository @Inject constructor(
     }
 
     suspend fun feedDetail(userid: Int?): FeedDetail {
-        Log.d("FeedRepository", "feedDetail: $userid")
-        val request = Request.Builder()
-            .url("https://api.slingacademy.com/v1/sample-data/users/${userid}")
-            .build()
-        val response = client.newCall(request).execute()
+        val response = network.execute<UserResponse>(
+            "https://api.slingacademy.com/v1/sample-data/users/${userid}", "GET",
+            responseType = UserResponse::class.java
+        )
+        if (!response.isSuccess) {
+            throw IOException("Unexpected code $response")
+        }
 
-        val body = response.body?.string()
+        val userResponse = response.getOrNull()
             ?: throw IOException("Empty response body")
-
-        val userResponse = Gson().fromJson(body, UserResponse::class.java)
         return FeedDetail(userid, userResponse.user.first_name, userResponse.user.profile_picture)
     }
 
