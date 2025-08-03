@@ -2,6 +2,7 @@ package com.awesome.home.presentation
 
 import android.util.Log
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.awesome.home.repository.FeedRepository
@@ -10,10 +11,6 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
@@ -25,68 +22,75 @@ class FeedViewModel @Inject constructor(
     private val repository: FeedRepository
 ) : ViewModel() {
 
-    private val _stateFlow = MutableStateFlow<List<FeedItem>>(emptyList())
-    val stateFlow = _stateFlow
-        .onStart { getFeedIds() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // Use mutableStateListOf for fine-grained updates and better Compose performance
+    private val _items = mutableStateListOf<FeedItem>()
+    val items: List<FeedItem> get() = _items
 
-    // Keep track of which indices have already been prefetched
+    // Track prefetched indices to avoid redundant fetches
     private val prefetchedIndices = mutableSetOf<Int>()
 
     private val handler = CoroutineExceptionHandler { _, exception ->
         Log.e("FeedViewModel", "Coroutine exception: ${exception.localizedMessage}", exception)
     }
 
-    fun getFeedIds() {
+    init {
+        // Load initial minimal feed IDs on ViewModel init
+        getFeedIds()
+    }
+
+    private fun getFeedIds() {
         viewModelScope.launch(Dispatchers.IO) {
-            val feedTopics = repository.fetchIdentifiers()
-            _stateFlow.value = feedTopics.take(1000).map {
-                FeedItem(id = it.topicId, detail = null)
+            try {
+                val feedTopics = repository.fetchIdentifiers()
+                withContext(Dispatchers.Main) {
+                    _items.clear()
+                    _items.addAll(feedTopics.map {
+                        FeedItem(id = it.topicId, detail = null)
+                    })
+                }
+            } catch (e: Exception) {
+                Log.e("FeedViewModel", "Failed to fetch feed IDs: ${e.localizedMessage}", e)
             }
         }
     }
 
     fun preFetchFeed(offset: Int, limit: Int = 10) {
         val rangeToFetch =
-            (offset until offset + limit).filterNot { prefetchedIndices.contains(it) }
+            (offset until (offset + limit)).filterNot { prefetchedIndices.contains(it) }
         if (rangeToFetch.isEmpty()) return
+
         Log.d("FeedViewModel", "Pre-fetching items: $rangeToFetch")
-        viewModelScope.launch(handler) {
-            withContext(Dispatchers.IO) {
-                supervisorScope {
-                    val currentItems = _stateFlow.value
 
-                    val itemsToFetch = rangeToFetch.mapNotNull { index ->
-                        currentItems.getOrNull(index)?.takeIf { it.detail == null }?.id
-                    }
+        viewModelScope.launch(handler + Dispatchers.IO) {
+            supervisorScope {
+                val itemsToFetch = rangeToFetch.mapNotNull { index ->
+                    _items.getOrNull(index)?.takeIf { it.detail == null }?.id
+                }
 
-                    val detailResults = itemsToFetch.map { id ->
-                        async {
-                            try {
-                                repository.feedDetail(id)
-                            } catch (e: Exception) {
-                                if (e is CancellationException) throw e
-                                Log.e("FeedViewModel", "Error for id $id: ${e.message}")
-                                null
-                            }
+                val detailResults = itemsToFetch.map { id ->
+                    async {
+                        try {
+                            repository.feedDetail(id)
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Log.e("FeedViewModel", "Error fetching detail for id $id: ${e.message}")
+                            null
                         }
-                    }.awaitAll()
+                    }
+                }.awaitAll()
 
-                    val updatedList = currentItems.mapIndexed { index, item ->
-                        if (index in rangeToFetch) {
-                            val detail = detailResults.getOrNull(rangeToFetch.indexOf(index))
-                            if (item.detail == null && detail != null) {
-                                item.copy(
+                withContext(Dispatchers.Main) {
+                    rangeToFetch.forEachIndexed { i, index ->
+                        val detail = detailResults.getOrNull(i)
+                        if (detail != null) {
+                            val oldItem = _items.getOrNull(index)
+                            if (oldItem != null && oldItem.detail == null) {
+                                _items[index] = oldItem.copy(
                                     detail = FeedDetail(detail.title, detail.thumbnailUrl)
                                 )
-                            } else item
-                        } else item
+                            }
+                        }
                     }
-
-                    if (updatedList != currentItems) {
-                        _stateFlow.value = updatedList
-                    }
-
                     prefetchedIndices.addAll(rangeToFetch)
                 }
             }
@@ -94,23 +98,26 @@ class FeedViewModel @Inject constructor(
     }
 
     fun updateFeedItem(topicId: Int) {
-        viewModelScope.launch {
-            val updatedItem = async {
-                repository.feedDetail(topicId)
-            }.await()
-            Log.d("FeedViewModel", "Updated item: $updatedItem")
-            val currentItems = _stateFlow.value
-            val updatedList = currentItems.map { item ->
-                if (item.id == topicId) {
-                    item.copy(
-                        detail = FeedDetail(
-                            name = "${updatedItem.title} : Refreshed",
-                            url = updatedItem.thumbnailUrl
+        viewModelScope.launch(handler + Dispatchers.IO) {
+            try {
+                val updatedDetail = repository.feedDetail(topicId)
+                withContext(Dispatchers.Main) {
+                    val index = _items.indexOfFirst { it.id == topicId }
+                    if (index >= 0) {
+                        val oldItem = _items[index]
+                        _items[index] = oldItem.copy(
+                            detail = FeedDetail(
+                                name = "${updatedDetail.title} : Refreshed",
+                                url = updatedDetail.thumbnailUrl
+                            )
                         )
-                    )
-                } else item
+                    }
+                }
+            } catch (e: Exception) {
+                if (e !is CancellationException) {
+                    Log.e("FeedViewModel", "Error updating item $topicId: ${e.message}")
+                }
             }
-            _stateFlow.value = updatedList
         }
     }
 

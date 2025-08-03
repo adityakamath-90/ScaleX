@@ -7,7 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.awesome.home.presentation.FeedViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,7 +20,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             ScaleXTheme {
                 FeedScreen(
-                    feedItemList = feedViewModel.stateFlow.collectAsStateWithLifecycle(emptyList()).value,
+                    feedItemList = feedViewModel.items,
                     onLoadVisibleItems = { end -> feedViewModel.preFetchFeed(offset = end) },
                     onRefreshClicked = { item -> feedViewModel.updateFeedItem(item.id) }
                 )
